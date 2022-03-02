@@ -1,0 +1,125 @@
+<html>
+    <head>
+        <title>108753132-HW1</title>
+        <link rel=stylesheet type="text/css" href="./index.css">
+        <script src="https://d3js.org/d3.v7.min.js"></script>
+    </head>
+    <div style="margin:auto; text-align:center;"><h1 class="text-center fw-bold">台股加權指數2012-2021折線圖</h1></div>
+    <div style="margin:0 auto; width:850px; text-align:center;">
+        <div class="chart" style="margin:0; text-align:center;"></div>
+        <div style="margin:0px 60px;"><h6>資料來源：<a href="https://finance.yahoo.com/quote/%5ETWII/history?period1=1325376000&period2=1640908800&interval=1d&filter=history&frequency=1d&includeAdjustedClose=true">Yahoo Finance</a></h6></div>
+        <div>
+            <p style="text-align:left; margin:20px 60px;font-family: monospace;">
+                　　藉由將十年的台股加權指數江波圖繪出，可以視覺化地去比較及分析每個月份的台股漲跌，比起直接看赤裸裸的數字，將數字直接視覺化地呈現，更容易去看到數據中的意涵，像是2021年六月(17,000->15,000)以及2020年三月(11,500->9,500)左右，因為疫情造成的下跌，從折線圖中就可以更輕易地看見其跌幅。
+                <br>　　也可以從折線圖上發現，歷年的台股加權指數，通常在十至十二月都會有一段漲幅，而大多數時候的五～六月間，台股加權指數都是跌的狀態。
+            </p>
+        </div>
+    </div>
+</html>    
+<script>
+    // ^TWII
+    // https://query1.finance.yahoo.com/v7/finance/download/^TWII?period1=1325376000&period2=1640908800&interval=1d&events=history&includeAdjustedClose=true
+    let data = []
+    async function getData() {
+        // get data
+        data = await d3.csv('tw.csv');
+        for(let i=0;i<data.length;i++){
+            data[i].year = data[i].Date.substr(0,4);
+            data[i].m = data[i].Date.substr(5, 2);
+            data[i].d = data[i].Date.substr(8, 2);
+            data[i].Date = "2087-"+data[i].m+"-"+data[i].d;
+        }
+        console.log(data);
+        drawChart();
+    };
+    getData()
+
+    function drawChart(){
+        d3.select('.chart svg').remove();
+
+        const rwdSvgWidth = 850;
+        const rwdSvgHeight = 600;
+        const margin = 60;
+
+        const svg = d3.select('.chart')
+            .append('svg')
+            .attr('width', rwdSvgWidth)
+            .attr('height', rwdSvgHeight);
+
+        const xData = data.map( (i) => {
+            return new Date(i.Date);
+        });
+        const yData = data.map( (i) => {
+            return parseInt(i["Adj Close"]);
+        });
+
+        const sumName = d3.group(data, d => d.year);
+
+        const xScale = d3.scaleTime()
+            .domain([new Date(2087, 01, 01), new Date(2087, 12, 31)])
+            .range([margin, rwdSvgWidth - margin])
+            .nice();
+
+        const xAxis = d3.axisBottom(xScale)
+            .tickFormat(d => {
+                console.log(d);
+                return new Date(d).getMonth() != 0 ? new Date(d).getMonth()%12+'月' : 12+'月';
+            });
+
+        const xAxisGroup = svg.append("g")
+            .call(xAxis)
+            .attr("transform", `translate(0,${rwdSvgHeight - margin})`);
+
+        const yScale = d3.scaleLinear()
+            .domain(d3.extent(yData))
+            .range([rwdSvgHeight - margin, margin])
+            .nice();
+
+        const yAxis = d3.axisLeft(yScale);
+        const yAxisGroup = svg.append("g")
+                .call(yAxis)
+                .attr("transform", `translate(${margin},0)`);
+
+        const color = d3.scaleOrdinal()
+            .domain(data.map(d=>d.item))
+            .range(d3.schemeCategory10);
+
+        const nameTag = d3.select('.chart')
+            .append('div')
+            .attr('class', 'nameTag')
+            .style('position', 'absolute')
+            .style("opacity", 0)
+            .style("background-color", "black")
+            .style("border-radius", "5px")
+            .style("padding", "10px")
+            .style("color", "white");
+
+        svg.selectAll('.line')
+            .data(sumName)
+            .join('path')
+            .attr("fill", "none")
+            .attr("stroke", d => color(d))
+            .attr("stroke-width", 1.2)
+            .attr('transform', `translate(${margin},0)`)
+            .attr("d", d => {
+                return d3.line()
+                    .x((d) => xScale( new Date(d.Date) ) )
+                    .y((d) => {
+                        let price = parseInt(d['Adj Close'])
+                        return yScale(price)
+                    })
+                (d[1])
+            })
+            .style('cursor', 'pointer')
+            .on('mouseover', handleMouseover);
+
+        function handleMouseover(d){
+            console.log(d);
+            const pt = d3.pointer(event, this);
+            nameTag.style("opacity", 0.75)
+                .html(d.target.__data__[0])
+                .style('left', (pt[0]+80) + 'px')
+                .style('top', (pt[1]+10) + 'px');
+        }
+    }
+</script>
